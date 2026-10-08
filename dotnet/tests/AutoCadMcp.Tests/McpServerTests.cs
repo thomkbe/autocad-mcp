@@ -22,7 +22,7 @@ public sealed class McpServerTests
             new[]
             {
                 "create_circle", "create_layer", "create_line", "erase_entities", "get_object_data",
-                "list_entities", "list_layers", "status", "zoom_extents",
+                "get_selection", "list_entities", "list_layers", "select_entities", "status", "zoom_extents",
             },
             tools.Select(t => t.Name).Order());
     }

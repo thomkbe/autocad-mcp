@@ -51,10 +51,10 @@ internal static class JsonArgs
         return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
     }
 
-    public static IReadOnlyList<string> RequireStringArray(this JsonObject args, string name)
+    public static IReadOnlyList<string> RequireStringArray(this JsonObject args, string name, bool allowEmpty = false)
     {
-        if (args[name] is not JsonArray array || array.Count == 0)
-            throw new CommandException($"Argument '{name}' must be a non-empty array of strings.");
+        if (args[name] is not JsonArray array || (array.Count == 0 && !allowEmpty))
+            throw new CommandException($"Argument '{name}' must be a {(allowEmpty ? "" : "non-empty ")}array of strings.");
 
         return array.Select(item => item is JsonValue v && v.TryGetValue(out string? s) && s.Length > 0
                 ? s

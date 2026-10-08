@@ -111,6 +111,25 @@ public sealed class AutoCadTools(PluginClient plugin)
             ["handle"] = handle, ["maxDepth"] = maxDepth, ["joinStrings"] = joinStrings,
         }, cancellationToken);
 
+    [McpServerTool(Name = "select_entities", Idempotent = true)]
+    [Description("Select entities in AutoCAD by handle, as if the user had picked them (grips shown, ready for " +
+                 "the next command). Replaces the current selection; an empty list clears it. Only entities in " +
+                 "the current space (the Model tab or the active layout) can be selected.")]
+    public Task<string> SelectEntities(
+        [Description("Hex handles of the entities to select")] string[] handles,
+        [Description("Also zoom the view to the selected entities")] bool zoom = false,
+        CancellationToken cancellationToken = default) =>
+        CallAsync("select_entities", new()
+        {
+            ["handles"] = new JsonArray(handles.Select(h => (JsonNode?)h).ToArray()), ["zoom"] = zoom,
+        }, cancellationToken);
+
+    [McpServerTool(Name = "get_selection", ReadOnly = true, Idempotent = true)]
+    [Description("Get the entities currently selected in AutoCAD (the user's pick, or select_entities): the " +
+                 "count, plus handle, type, layer and key geometry of up to 100 of them.")]
+    public Task<string> GetSelection(CancellationToken cancellationToken = default) =>
+        CallAsync("get_selection", null, cancellationToken);
+
     [McpServerTool(Name = "zoom_extents", Idempotent = true)]
     [Description("Zoom the Model tab view so the whole drawing is visible.")]
     public Task<string> ZoomExtents(CancellationToken cancellationToken = default) =>

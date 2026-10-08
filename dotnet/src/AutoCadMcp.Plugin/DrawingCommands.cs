@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 using AcadApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
@@ -34,6 +35,8 @@ internal static class DrawingCommands
         ["create_layer"] = CreateLayer,
         ["zoom_extents"] = ZoomExtents,
         ["get_object_data"] = GetObjectData,
+        ["select_entities"] = SelectEntities,
+        ["get_selection"] = GetSelection,
     };
 
     /// <summary>Works without a drawing open and while AutoCAD is busy.</summary>
@@ -241,6 +244,77 @@ internal static class DrawingCommands
         if (db.Extmin.X > db.Extmax.X)
             return new JsonObject { ["zoomed"] = false, ["reason"] = "The drawing is empty." };
 
+        ZoomTo(ctx, new Extents3d(db.Extmin, db.Extmax), margin: 1.05);
+        return new JsonObject { ["zoomed"] = true, ["min"] = Point(db.Extmin), ["max"] = Point(db.Extmax) };
+    }
+
+    private static JsonNode SelectEntities(DrawingContext ctx, JsonObject args)
+    {
+        var handles = args.RequireStringArray("handles", allowEmpty: true);
+        var ids = new List<ObjectId>();
+        var selected = new JsonArray();
+        var failed = new JsonArray();
+        Extents3d? bounds = null;
+        foreach (var handle in handles)
+        {
+            if (TryGetSelectable(ctx, handle, out var entity) is { } error)
+            {
+                failed.Add(new JsonObject { ["handle"] = handle, ["error"] = error });
+                continue;
+            }
+            ids.Add(entity!.ObjectId);
+            selected.Add(handle);
+            if (entity.Bounds is { } entityBounds)
+            {
+                var union = bounds ?? entityBounds;
+                union.AddExtents(entityBounds);
+                bounds = union;
+            }
+        }
+
+        // An empty request clears the selection; a request where nothing resolved leaves it alone.
+        if (ids.Count > 0 || handles.Count == 0)
+            ctx.Document.Editor.SetImpliedSelection(ids.ToArray());
+
+        var zoomed = args.OptionalBool("zoom") == true && bounds is not null;
+        if (zoomed)
+            ZoomTo(ctx, bounds!.Value, margin: 3);
+
+        var result = new JsonObject { ["selected"] = selected, ["failed"] = failed, ["zoomed"] = zoomed };
+        if (Convert.ToInt32(AcadApp.GetSystemVariable("PICKFIRST")) == 0)
+            result["warning"] = "PICKFIRST is 0, so AutoCAD may not show or keep this selection.";
+        return result;
+    }
+
+    private static JsonNode GetSelection(DrawingContext ctx, JsonObject args)
+    {
+        var implied = ctx.Document.Editor.SelectImplied();
+        var ids = implied.Status == PromptStatus.OK ? implied.Value.GetObjectIds() : [];
+        var entities = new JsonArray();
+        foreach (var id in ids.Take(100))
+        {
+            if (ctx.Transaction.GetObject(id, OpenMode.ForRead) is Entity entity)
+                entities.Add(Describe(entity));
+        }
+        return new JsonObject { ["count"] = ids.Length, ["entities"] = entities };
+    }
+
+    private static string? TryGetSelectable(DrawingContext ctx, string handle, out Entity? entity)
+    {
+        entity = null;
+        if (TryResolveHandle(ctx, handle, out var id) is { } error)
+            return error;
+        entity = ctx.Transaction.GetObject(id, OpenMode.ForRead) as Entity;
+        if (entity is null)
+            return "not a drawing entity";
+        if (entity.OwnerId != ctx.Database.CurrentSpaceId)
+            return "not in the current space; switch to the tab that contains it";
+        return null;
+    }
+
+    /// <summary>Centers the current view on WCS extents, scaled up by <paramref name="margin"/>.</summary>
+    private static void ZoomTo(DrawingContext ctx, Extents3d worldExtents, double margin)
+    {
         var editor = ctx.Document.Editor;
         using var view = editor.GetCurrentView();
 
@@ -248,10 +322,9 @@ internal static class DrawingCommands
         var displayToWorld = Matrix3d.Rotation(-view.ViewTwist, view.ViewDirection, view.Target)
             * Matrix3d.Displacement(view.Target - Point3d.Origin)
             * Matrix3d.PlaneToWorld(view.ViewDirection);
-        var extents = new Extents3d(db.Extmin, db.Extmax);
+        var extents = worldExtents;
         extents.TransformBy(displayToWorld.Inverse());
 
-        const double margin = 1.05;
         var width = (extents.MaxPoint.X - extents.MinPoint.X) * margin;
         var height = (extents.MaxPoint.Y - extents.MinPoint.Y) * margin;
         if (width < 1e-9 && height < 1e-9)
@@ -262,8 +335,6 @@ internal static class DrawingCommands
             (extents.MinPoint.X + extents.MaxPoint.X) / 2,
             (extents.MinPoint.Y + extents.MaxPoint.Y) / 2);
         editor.SetCurrentView(view);
-
-        return new JsonObject { ["zoomed"] = true, ["min"] = Point(db.Extmin), ["max"] = Point(db.Extmax) };
     }
 
     private static void AddToModelSpace(DrawingContext ctx, Entity entity, string? layer)

@@ -94,6 +94,35 @@ public sealed class LiveAutoCadTests
     }
 
     [Fact]
+    public async Task Selection_set_by_one_request_is_seen_by_the_next()
+    {
+        var plugin = ConnectOrSkip();
+        var line = await plugin.SendAsync("create_line",
+            new JsonObject { ["startX"] = 0, ["startY"] = 0, ["endX"] = 1, ["endY"] = 1 }, Ct);
+        var handle = line?["handle"]?.GetValue<string>();
+        try
+        {
+            var select = await plugin.SendAsync("select_entities",
+                new JsonObject { ["handles"] = new JsonArray(handle, "FFFFFFF") }, Ct);
+            Assert.Equal([handle], select?["selected"]?.AsArray().Select(h => h?.GetValue<string>()) ?? []);
+            Assert.Equal("no such object", select?["failed"]?[0]?["error"]?.GetValue<string>());
+
+            // A separate request: the selection must outlive the call that set it.
+            var selection = await plugin.SendAsync("get_selection", null, Ct);
+            Assert.Equal(1, selection?["count"]?.GetValue<int>());
+            Assert.Equal(handle, selection?["entities"]?[0]?["handle"]?.GetValue<string>());
+
+            await plugin.SendAsync("select_entities", new JsonObject { ["handles"] = new JsonArray() }, Ct);
+            var cleared = await plugin.SendAsync("get_selection", null, Ct);
+            Assert.Equal(0, cleared?["count"]?.GetValue<int>());
+        }
+        finally
+        {
+            await plugin.SendAsync("erase_entities", new JsonObject { ["handles"] = new JsonArray(handle) }, Ct);
+        }
+    }
+
+    [Fact]
     public async Task Rejects_bad_requests_with_clear_messages()
     {
         var plugin = ConnectOrSkip();
