@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- WPF for the Dispatcher that MainThreadInvoker targets. -->
+    <UseWPF>true</UseWPF>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="xunit.v3" Version="4.0.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AutoCadMcp.Server\AutoCadMcp.Server.csproj" />
+  </ItemGroup>
+
+  <!-- The plugin's transport classes don't touch AutoCAD, so they are compiled in and tested
+       directly. Everything that does touch AutoCAD is covered by LiveAutoCadTests. -->
+  <ItemGroup>
+    <Compile Include="..\..\src\AutoCadMcp.Plugin\PipeServer.cs" Link="Plugin\PipeServer.cs" />
+    <Compile Include="..\..\src\AutoCadMcp.Plugin\MainThreadInvoker.cs" Link="Plugin\MainThreadInvoker.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="System.IO" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>
