@@ -85,17 +85,19 @@ public sealed class RailCompleteTools(RailCompleteClient railComplete)
         }, cancellationToken);
 
     [McpServerTool(Name = "rc_model_check_report", ReadOnly = true, Idempotent = true)]
-    [Description("Report the model-check results stored on the drawing's objects: counts per symbol, counts per check, " +
-                 "and the individual results with the chosen symbols (default warning, error and unfinished). These " +
-                 "are the results as RailCOMPLETE last evaluated them; it re-evaluates when objects change.")]
+    [Description("Report the model-check results stored on the drawing's objects: counts per status, counts per check, " +
+                 "and the individual results with the chosen statuses (default warning, error and unfinished). A " +
+                 "result's status is its stored symbol; when a DNA function stored no symbol, it is the OK/WARNING/" +
+                 "ERROR/UNFINISHED keyword in the result text, marked statusFromText. These are the results as " +
+                 "RailCOMPLETE last evaluated them; it re-evaluates when objects change.")]
     public Task<string> ModelCheckReport(
-        [Description("Symbols to list: ok, warning, error, unfinished, noSymbol")] string[]? symbols = null,
+        [Description("Statuses to list: ok, warning, error, unfinished, unknown")] string[]? statuses = null,
         [Description("Only objects of this DNA type")] string? type = null,
         [Description("Maximum number of results to return, 1-2000 (default 200)")] int? limit = null,
         CancellationToken cancellationToken = default) =>
         CallAsync("rc_model_check_report", new()
         {
-            ["symbols"] = ToArray(symbols), ["type"] = type, ["limit"] = limit,
+            ["statuses"] = ToArray(statuses), ["type"] = type, ["limit"] = limit,
         }, cancellationToken);
 
     [McpServerTool(Name = "rc_eval_lua", ReadOnly = true)]
