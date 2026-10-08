@@ -57,6 +57,8 @@ claude mcp add autocad-dotnet -- <repo>\dotnet\src\AutoCadMcp.Server\bin\Release
 | `list_entities` | Model space entities with handle, type, layer and key geometry; filter by layer or DXF type. Flags `hasExtensionDictionary` / `hasXData` |
 | `get_object_data` | Data attached to any object by handle: extension dictionary tree (Xrecords as DXF code/value pairs, nested dictionaries, other objects by class) and XData by application. Handle `C` is the drawing's named objects dictionary |
 | `erase_entities` | Erase entities by handle; reports per-handle failures (locked layer, unknown handle) |
+| `select_entities` | Select entities by handle as if picked (grips shown), optionally zooming to them; an empty list clears the selection |
+| `get_selection` | What is currently selected in AutoCAD, with handle, type, layer and key geometry |
 | `list_layers` | Layers with color, on/frozen/locked state, and the current layer |
 | `create_layer` | Create a layer (ACI color) and optionally make it current |
 | `zoom_extents` | Zoom the Model tab to the drawing extents |
