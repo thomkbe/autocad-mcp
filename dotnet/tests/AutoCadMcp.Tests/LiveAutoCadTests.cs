@@ -57,6 +57,43 @@ public sealed class LiveAutoCadTests
     }
 
     [Fact]
+    public async Task Reads_dictionaries_and_reports_plain_entities_as_having_no_data()
+    {
+        var plugin = ConnectOrSkip();
+
+        // Handle C is the named objects dictionary in AutoCAD drawings; it always holds ACAD_LAYOUT.
+        var namedObjects = await plugin.SendAsync("get_object_data",
+            new JsonObject { ["handle"] = "C", ["maxDepth"] = 1 }, Ct);
+        Assert.Equal("DICTIONARY", namedObjects?["type"]?.GetValue<string>());
+        // maxDepth 1: objects one level down are read in full, the level below that is only listed.
+        var layouts = namedObjects?["entries"]?["ACAD_LAYOUT"];
+        Assert.Equal("DICTIONARY", layouts?["type"]?.GetValue<string>());
+        var model = layouts?["entries"]?["Model"];
+        Assert.Equal("LAYOUT", model?["type"]?.GetValue<string>());
+        Assert.Equal("maxDepth reached", model?["notExpanded"]?.GetValue<string>());
+
+        var line = await plugin.SendAsync("create_line",
+            new JsonObject { ["startX"] = 0, ["startY"] = 0, ["endX"] = 1, ["endY"] = 1 }, Ct);
+        var handle = line?["handle"]?.GetValue<string>();
+        try
+        {
+            Assert.Null(line?["hasExtensionDictionary"]);
+            var data = await plugin.SendAsync("get_object_data", new JsonObject { ["handle"] = handle }, Ct);
+            Assert.Equal("AcDbLine", data?["class"]?.GetValue<string>());
+            Assert.Null(data?["extensionDictionary"]);
+            Assert.Null(data?["xdata"]);
+        }
+        finally
+        {
+            await plugin.SendAsync("erase_entities", new JsonObject { ["handles"] = new JsonArray(handle) }, Ct);
+        }
+
+        var missing = await Assert.ThrowsAsync<PluginException>(() => plugin.SendAsync("get_object_data",
+            new JsonObject { ["handle"] = "FFFFFFF" }, Ct));
+        Assert.Contains("no such object", missing.Message);
+    }
+
+    [Fact]
     public async Task Rejects_bad_requests_with_clear_messages()
     {
         var plugin = ConnectOrSkip();

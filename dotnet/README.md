@@ -54,7 +54,8 @@ claude mcp add autocad-dotnet -- <repo>\dotnet\src\AutoCadMcp.Server\bin\Release
 | `status` | AutoCAD version, active drawing, units, and whether AutoCAD is busy |
 | `create_line` | Line in model space between two 2D points, optional layer |
 | `create_circle` | Circle in model space, optional layer |
-| `list_entities` | Model space entities with handle, type, layer and key geometry; filter by layer or DXF type |
+| `list_entities` | Model space entities with handle, type, layer and key geometry; filter by layer or DXF type. Flags `hasExtensionDictionary` / `hasXData` |
+| `get_object_data` | Data attached to any object by handle: extension dictionary tree (Xrecords as DXF code/value pairs, nested dictionaries, other objects by class) and XData by application. Handle `C` is the drawing's named objects dictionary |
 | `erase_entities` | Erase entities by handle; reports per-handle failures (locked layer, unknown handle) |
 | `list_layers` | Layers with color, on/frozen/locked state, and the current layer |
 | `create_layer` | Create a layer (ACI color) and optionally make it current |

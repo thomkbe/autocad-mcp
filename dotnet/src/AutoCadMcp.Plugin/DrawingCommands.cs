@@ -33,6 +33,7 @@ internal static class DrawingCommands
         ["list_layers"] = ListLayers,
         ["create_layer"] = CreateLayer,
         ["zoom_extents"] = ZoomExtents,
+        ["get_object_data"] = GetObjectData,
     };
 
     /// <summary>Works without a drawing open and while AutoCAD is busy.</summary>
@@ -122,12 +123,30 @@ internal static class DrawingCommands
         return new JsonObject { ["erased"] = erased, ["failed"] = failed };
     }
 
-    private static string? TryErase(DrawingContext ctx, string handleText)
+    private static JsonNode GetObjectData(DrawingContext ctx, JsonObject args)
     {
+        var handle = args.RequireString("handle");
+        var maxDepth = Math.Clamp(args.OptionalInt("maxDepth") ?? 6, 1, 20);
+        if (TryResolveHandle(ctx, handle, out var id) is { } error)
+            throw new CommandException($"Handle '{handle}': {error}.");
+
+        return new ObjectDataReader(ctx, maxDepth).Read(ctx.Transaction.GetObject(id, OpenMode.ForRead));
+    }
+
+    private static string? TryResolveHandle(DrawingContext ctx, string handleText, out ObjectId id)
+    {
+        id = ObjectId.Null;
         if (!long.TryParse(handleText, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var value))
             return "not a hexadecimal handle";
-        if (!ctx.Database.TryGetObjectId(new Handle(value), out var id) || id.IsErased)
+        if (!ctx.Database.TryGetObjectId(new Handle(value), out id) || id.IsErased)
             return "no such object";
+        return null;
+    }
+
+    private static string? TryErase(DrawingContext ctx, string handleText)
+    {
+        if (TryResolveHandle(ctx, handleText, out var id) is { } error)
+            return error;
         if (ctx.Transaction.GetObject(id, OpenMode.ForRead) is not Entity entity)
             return "not a drawing entity";
 
@@ -275,7 +294,7 @@ internal static class DrawingCommands
             : throw new CommandException($"Layer '{name}' does not exist. Create it with create_layer first.");
     }
 
-    private static JsonObject Describe(Entity entity)
+    internal static JsonObject Describe(Entity entity)
     {
         var json = new JsonObject
         {
@@ -283,6 +302,15 @@ internal static class DrawingCommands
             ["type"] = entity.ObjectId.ObjectClass.DxfName,
             ["layer"] = entity.Layer,
         };
+
+        // Flags only when set, to keep long listings short. get_object_data reads the contents.
+        if (!entity.ExtensionDictionary.IsNull)
+            json["hasExtensionDictionary"] = true;
+        using (var xdata = entity.XData)
+        {
+            if (xdata is not null)
+                json["hasXData"] = true;
+        }
 
         switch (entity)
         {

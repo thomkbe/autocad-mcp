@@ -91,6 +91,20 @@ public sealed class AutoCadTools(PluginClient plugin)
         CallAsync("create_layer", new() { ["name"] = name, ["color"] = color, ["makeCurrent"] = makeCurrent },
             cancellationToken);
 
+    [McpServerTool(Name = "get_object_data", ReadOnly = true, Idempotent = true)]
+    [Description("Read the data attached to an entity, or to any other object, by handle. Walks its extension " +
+                 "dictionary recursively: Xrecords as DXF group code/value pairs, nested dictionaries, and other " +
+                 "objects reported by class and defining application (with proxyFor when that application isn't " +
+                 "loaded). Also returns XData grouped by application. Object references in the data come back as " +
+                 "handles that can be passed to this tool again. list_entities marks entities that have data " +
+                 "with hasExtensionDictionary / hasXData.")]
+    public Task<string> GetObjectData(
+        [Description("Hex handle of the entity or object")] string handle,
+        [Description("How many levels below the object are read in full, 1-20 (default 6). Deeper objects are " +
+                     "listed by handle and type only, marked notExpanded.")] int? maxDepth = null,
+        CancellationToken cancellationToken = default) =>
+        CallAsync("get_object_data", new() { ["handle"] = handle, ["maxDepth"] = maxDepth }, cancellationToken);
+
     [McpServerTool(Name = "zoom_extents", Idempotent = true)]
     [Description("Zoom the Model tab view so the whole drawing is visible.")]
     public Task<string> ZoomExtents(CancellationToken cancellationToken = default) =>

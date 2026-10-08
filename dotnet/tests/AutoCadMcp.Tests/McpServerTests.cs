@@ -19,7 +19,11 @@ public sealed class McpServerTests
         var tools = await client.ListToolsAsync(cancellationToken: Ct);
 
         Assert.Equal(
-            new[] { "create_circle", "create_layer", "create_line", "erase_entities", "list_entities", "list_layers", "status", "zoom_extents" },
+            new[]
+            {
+                "create_circle", "create_layer", "create_line", "erase_entities", "get_object_data",
+                "list_entities", "list_layers", "status", "zoom_extents",
+            },
             tools.Select(t => t.Name).Order());
     }
 
