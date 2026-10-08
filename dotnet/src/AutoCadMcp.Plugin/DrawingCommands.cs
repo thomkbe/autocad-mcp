@@ -127,10 +127,11 @@ internal static class DrawingCommands
     {
         var handle = args.RequireString("handle");
         var maxDepth = Math.Clamp(args.OptionalInt("maxDepth") ?? 6, 1, 20);
+        var joinStrings = args.OptionalBool("joinStrings") ?? false;
         if (TryResolveHandle(ctx, handle, out var id) is { } error)
             throw new CommandException($"Handle '{handle}': {error}.");
 
-        return new ObjectDataReader(ctx, maxDepth).Read(ctx.Transaction.GetObject(id, OpenMode.ForRead));
+        return new ObjectDataReader(ctx, maxDepth, joinStrings).Read(ctx.Transaction.GetObject(id, OpenMode.ForRead));
     }
 
     private static string? TryResolveHandle(DrawingContext ctx, string handleText, out ObjectId id)

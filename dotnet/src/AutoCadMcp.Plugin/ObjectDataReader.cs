@@ -8,8 +8,9 @@ namespace AutoCadMcp.Plugin;
 /// Reads the data attached to an object: its extension dictionary (walked recursively) and
 /// its XData. Xrecords come back as DXF group code/value pairs; other objects in a dictionary
 /// are reported by class, since their fields are only known to the application defining them.
+/// With <paramref name="joinStrings"/>, chunked text comes back as one value (see <see cref="StringJoiner"/>).
 /// </summary>
-internal sealed class ObjectDataReader(DrawingContext ctx, int maxDepth)
+internal sealed class ObjectDataReader(DrawingContext ctx, int maxDepth, bool joinStrings)
 {
     private const int MaxObjects = 500;
     private const int MaxValuesPerBuffer = 1000;
@@ -85,7 +86,7 @@ internal sealed class ObjectDataReader(DrawingContext ctx, int maxDepth)
         return Describe(ctx.Transaction.GetObject(id, OpenMode.ForRead), depth + 1);
     }
 
-    private static JsonArray XDataByApp(ResultBuffer xdata)
+    private JsonArray XDataByApp(ResultBuffer xdata)
     {
         var apps = new JsonArray();
         JsonObject? current = null;
@@ -117,24 +118,31 @@ internal sealed class ObjectDataReader(DrawingContext ctx, int maxDepth)
         return apps;
     }
 
-    private static void AddValues(JsonObject target, string name, IEnumerable<TypedValue>? values)
+    private void AddValues(JsonObject target, string name, IEnumerable<TypedValue>? values)
     {
+        var pairs = (values ?? []).Select(v => (v.TypeCode, (object?)v.Value));
+        var items = joinStrings ? StringJoiner.Join(pairs) : pairs.Select(p => (p.TypeCode, p.Item2, Parts: 1));
+
         var array = new JsonArray();
         var total = 0;
-        foreach (var value in values ?? [])
+        foreach (var (code, value, parts) in items)
         {
-            if (++total <= MaxValuesPerBuffer)
-                array.Add(Value(value));
+            if (++total > MaxValuesPerBuffer)
+                continue;
+            var json = Value(code, value);
+            if (parts > 1)
+                json["joined"] = parts;
+            array.Add(json);
         }
         target[name] = array;
         if (total > MaxValuesPerBuffer)
             target[name + "Total"] = total;
     }
 
-    private static JsonObject Value(TypedValue typed)
+    private static JsonObject Value(short code, object? value)
     {
-        var json = new JsonObject { ["code"] = typed.TypeCode };
-        switch (typed.Value)
+        var json = new JsonObject { ["code"] = code };
+        switch (value)
         {
             case null:
                 json["value"] = null;
@@ -149,7 +157,7 @@ internal sealed class ObjectDataReader(DrawingContext ctx, int maxDepth)
                 json["value"] = double.IsFinite(d) ? d : d.ToString();
                 break;
             case short or int or long or byte:
-                json["value"] = JsonValue.Create(Convert.ToInt64(typed.Value));
+                json["value"] = JsonValue.Create(Convert.ToInt64(value));
                 break;
             case Point3d p:
                 json["value"] = new JsonArray(p.X, p.Y, p.Z);
@@ -166,8 +174,8 @@ internal sealed class ObjectDataReader(DrawingContext ctx, int maxDepth)
                     json["bytes"] = bytes.Length;
                 break;
             default:
-                json["value"] = typed.Value.ToString();
-                json["valueType"] = typed.Value.GetType().Name;
+                json["value"] = value.ToString();
+                json["valueType"] = value.GetType().Name;
                 break;
         }
         return json;

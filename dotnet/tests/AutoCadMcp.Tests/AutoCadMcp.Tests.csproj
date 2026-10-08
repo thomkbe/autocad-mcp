@@ -23,6 +23,7 @@
   <ItemGroup>
     <Compile Include="..\..\src\AutoCadMcp.Plugin\PipeServer.cs" Link="Plugin\PipeServer.cs" />
     <Compile Include="..\..\src\AutoCadMcp.Plugin\MainThreadInvoker.cs" Link="Plugin\MainThreadInvoker.cs" />
+    <Compile Include="..\..\src\AutoCadMcp.Plugin\StringJoiner.cs" Link="Plugin\StringJoiner.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -102,8 +102,14 @@ public sealed class AutoCadTools(PluginClient plugin)
         [Description("Hex handle of the entity or object")] string handle,
         [Description("How many levels below the object are read in full, 1-20 (default 6). Deeper objects are " +
                      "listed by handle and type only, marked notExpanded.")] int? maxDepth = null,
+        [Description("Join consecutive text values with the same group code into one value (marked joined: N). " +
+                     "Applications split long text into chunks this way, e.g. RailCOMPLETE's RAILCOMPLETE_XMLDATA " +
+                     "XML. Leave off to see values exactly as stored.")] bool joinStrings = false,
         CancellationToken cancellationToken = default) =>
-        CallAsync("get_object_data", new() { ["handle"] = handle, ["maxDepth"] = maxDepth }, cancellationToken);
+        CallAsync("get_object_data", new()
+        {
+            ["handle"] = handle, ["maxDepth"] = maxDepth, ["joinStrings"] = joinStrings,
+        }, cancellationToken);
 
     [McpServerTool(Name = "zoom_extents", Idempotent = true)]
     [Description("Zoom the Model tab view so the whole drawing is visible.")]
