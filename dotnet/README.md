@@ -63,6 +63,23 @@ claude mcp add autocad-dotnet -- <repo>\dotnet\src\AutoCadMcp.Server\bin\Release
 | `create_layer` | Create a layer (ACI color) and optionally make it current |
 | `zoom_extents` | Zoom the Model tab to the drawing extents |
 
+### RailCOMPLETE tools
+
+The `rc_*` tools talk to the **MCP Bridge** module inside RailCOMPLETE (project `Solutions/AutoCAD.Mcp`
+in the RailCOMPLETE repo, branch `mcp-bridge`) over the pipe `railcomplete-mcp`
+(override with `RAILCOMPLETE_MCP_PIPE`). They read RailCOMPLETE's own object model and never
+change the drawing. The bridge loads with RailCOMPLETE; this repo's plugin is not needed for them.
+
+| Tool | What it does |
+|------|--------------|
+| `rc_status` | Licence level, DNA name/administration/version, object counts by type |
+| `rc_list_types` | DNA object types in the drawing (or all), or one type's custom properties and formulas |
+| `rc_find_objects` | Objects by type, data type, class, text, or a read-only Lua condition |
+| `rc_get_object` | One object's properties as the Properties palette shows them, its formulas and model-check results |
+| `rc_model_check_report` | Stored model-check results across the drawing, by symbol and by check |
+| `rc_eval_lua` | Evaluate read-only RailCOMPLETE Lua for one object or the whole drawing |
+| `rc_lua_api` | Search the Lua functions available to `rc_eval_lua` |
+
 ## Behavior worth knowing
 
 - **Busy AutoCAD:** requests are refused while a command is running in AutoCAD, with a

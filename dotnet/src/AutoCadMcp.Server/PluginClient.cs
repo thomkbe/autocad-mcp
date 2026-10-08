@@ -5,9 +5,15 @@ using AutoCadMcp.Protocol;
 
 namespace AutoCadMcp.Server;
 
-/// <summary>Talks to the AutoCAD plugin over its named pipe, one connection per request.</summary>
-public sealed class PluginClient(string pipeName)
+/// <summary>Talks to a plugin inside AutoCAD over its named pipe, one connection per request.</summary>
+/// <param name="unavailableHint">What to tell the model when nothing listens on the pipe.</param>
+public class PluginClient(string pipeName, string unavailableHint)
 {
+    public PluginClient(string pipeName)
+        : this(pipeName, "Start AutoCAD 2025 or 2026 and NETLOAD AutoCadMcp.Plugin.dll (see dotnet/README.md).")
+    {
+    }
+
     private const int ConnectTimeoutMs = 2000;
 
     // Longer than the plugin's main-thread timeout, so its "AutoCAD is busy" answer arrives first.
@@ -28,9 +34,7 @@ public sealed class PluginClient(string pipeName)
         }
         catch (Exception ex) when (ex is TimeoutException or UnauthorizedAccessException)
         {
-            throw new PluginUnavailableException(
-                $"Could not reach the AutoCAD plugin on pipe '{pipeName}'. Start AutoCAD 2025 or 2026 and " +
-                "NETLOAD AutoCadMcp.Plugin.dll (see dotnet/README.md).");
+            throw new PluginUnavailableException($"Could not reach anything on pipe '{pipeName}'. {unavailableHint}");
         }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
